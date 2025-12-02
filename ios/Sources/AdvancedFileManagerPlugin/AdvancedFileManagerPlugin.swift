@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 /**
  * Advanced File Manager Plugin for Capacitor
- * Provides comprehensive file system operations
+ * 模块化架构的文件管理插件
  */
 @objc(AdvancedFileManagerPlugin)
 public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -21,20 +21,26 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "readFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "writeFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "deleteFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "renameFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "moveFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "copyFile", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "renameFile", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getFileInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "exists", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "searchFiles", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSystemFilePicker", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSystemFileManager", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openFileWithSystemApp", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "echo", returnType: CAPPluginReturnPromise)
     ]
-    private let implementation = AdvancedFileManager()
+    
+    // 模块实例
+    private let fileOps = FileOperations()
+    private let dirOps = DirectoryOperations()
+    private let fileSearcher = FileSearcher()
+
+    // MARK: - 权限管理
 
     @objc public override func requestPermissions(_ call: CAPPluginCall) {
-        // iOS 应用在沙盒内有完整的文件访问权限
         call.resolve([
             "granted": true,
             "message": "File access permissions granted within app sandbox"
@@ -48,6 +54,8 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         ])
     }
 
+    // MARK: - 目录操作
+
     @objc func listDirectory(_ call: CAPPluginCall) {
         guard let path = call.getString("path") else {
             call.reject("Path is required")
@@ -59,7 +67,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         let sortOrder = call.getString("sortOrder") ?? "asc"
 
         do {
-            let result = try implementation.listDirectory(path: path, showHidden: showHidden, sortBy: sortBy, sortOrder: sortOrder)
+            let result = try dirOps.listDirectory(path: path, showHidden: showHidden, sortBy: sortBy, sortOrder: sortOrder)
             call.resolve(result)
         } catch {
             call.reject("Failed to list directory: \(error.localizedDescription)")
@@ -75,7 +83,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         let recursive = call.getBool("recursive") ?? false
 
         do {
-            try implementation.createDirectory(path: path, recursive: recursive)
+            try dirOps.createDirectory(path: path, recursive: recursive)
             call.resolve()
         } catch {
             call.reject("Failed to create directory: \(error.localizedDescription)")
@@ -89,12 +97,14 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         do {
-            try implementation.deleteDirectory(path: path)
+            try dirOps.deleteDirectory(path: path)
             call.resolve()
         } catch {
             call.reject("Failed to delete directory: \(error.localizedDescription)")
         }
     }
+
+    // MARK: - 文件操作
 
     @objc func createFile(_ call: CAPPluginCall) {
         guard let path = call.getString("path") else {
@@ -106,7 +116,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         let encoding = call.getString("encoding") ?? "utf8"
 
         do {
-            try implementation.createFile(path: path, content: content, encoding: encoding)
+            try fileOps.createFile(path: path, content: content, encoding: encoding)
             call.resolve()
         } catch {
             call.reject("Failed to create file: \(error.localizedDescription)")
@@ -122,7 +132,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         let encoding = call.getString("encoding") ?? "utf8"
 
         do {
-            let result = try implementation.readFile(path: path, encoding: encoding)
+            let result = try fileOps.readFile(path: path, encoding: encoding)
             call.resolve(result)
         } catch {
             call.reject("Failed to read file: \(error.localizedDescription)")
@@ -140,7 +150,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         let append = call.getBool("append") ?? false
 
         do {
-            try implementation.writeFile(path: path, content: content, encoding: encoding, append: append)
+            try fileOps.writeFile(path: path, content: content, encoding: encoding, append: append)
             call.resolve()
         } catch {
             call.reject("Failed to write file: \(error.localizedDescription)")
@@ -154,42 +164,10 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         do {
-            try implementation.deleteFile(path: path)
+            try fileOps.deleteFile(path: path)
             call.resolve()
         } catch {
             call.reject("Failed to delete file: \(error.localizedDescription)")
-        }
-    }
-
-    @objc func moveFile(_ call: CAPPluginCall) {
-        guard let sourcePath = call.getString("sourcePath"),
-              let destinationPath = call.getString("destinationPath") else {
-            call.reject("Source path and destination path are required")
-            return
-        }
-
-        do {
-            try implementation.moveFile(sourcePath: sourcePath, destinationPath: destinationPath)
-            call.resolve()
-        } catch {
-            call.reject("Failed to move file: \(error.localizedDescription)")
-        }
-    }
-
-    @objc func copyFile(_ call: CAPPluginCall) {
-        guard let sourcePath = call.getString("sourcePath"),
-              let destinationPath = call.getString("destinationPath") else {
-            call.reject("Source path and destination path are required")
-            return
-        }
-
-        let overwrite = call.getBool("overwrite") ?? false
-
-        do {
-            try implementation.copyFile(sourcePath: sourcePath, destinationPath: destinationPath, overwrite: overwrite)
-            call.resolve()
-        } catch {
-            call.reject("Failed to copy file: \(error.localizedDescription)")
         }
     }
 
@@ -201,10 +179,42 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         do {
-            try implementation.renameFile(path: path, newName: newName)
+            try fileOps.renameFile(path: path, newName: newName)
             call.resolve()
         } catch {
             call.reject("Failed to rename file: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func moveFile(_ call: CAPPluginCall) {
+        guard let sourcePath = call.getString("sourcePath"),
+              let destinationPath = call.getString("destinationPath") else {
+            call.reject("sourcePath and destinationPath are required")
+            return
+        }
+
+        do {
+            try fileOps.moveFile(sourcePath: sourcePath, destinationPath: destinationPath)
+            call.resolve()
+        } catch {
+            call.reject("Failed to move file: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func copyFile(_ call: CAPPluginCall) {
+        guard let sourcePath = call.getString("sourcePath"),
+              let destinationPath = call.getString("destinationPath") else {
+            call.reject("sourcePath and destinationPath are required")
+            return
+        }
+
+        let overwrite = call.getBool("overwrite") ?? false
+
+        do {
+            try fileOps.copyFile(sourcePath: sourcePath, destinationPath: destinationPath, overwrite: overwrite)
+            call.resolve()
+        } catch {
+            call.reject("Failed to copy file: \(error.localizedDescription)")
         }
     }
 
@@ -215,7 +225,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         do {
-            let result = try implementation.getFileInfo(path: path)
+            let result = try fileOps.getFileInfo(path: path)
             call.resolve(result)
         } catch {
             call.reject("Failed to get file info: \(error.localizedDescription)")
@@ -228,190 +238,177 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        let exists = implementation.exists(path: path)
-        call.resolve(["exists": exists])
+        call.resolve(["exists": fileOps.exists(path: path)])
     }
+
+    // MARK: - 搜索
+
+    @objc func searchFiles(_ call: CAPPluginCall) {
+        guard let directory = call.getString("directory"),
+              let query = call.getString("query") else {
+            call.reject("Directory and query are required")
+            return
+        }
+
+        let searchType = call.getString("searchType") ?? "name"
+        let fileTypes = call.getArray("fileTypes")?.compactMap { $0 as? String }
+        let maxResults = call.getInt("maxResults") ?? 100
+        let recursive = call.getBool("recursive") ?? true
+
+        do {
+            let result = try fileSearcher.searchFiles(directory: directory, query: query,
+                                                       searchType: searchType, fileTypes: fileTypes,
+                                                       maxResults: maxResults, recursive: recursive)
+            call.resolve(result)
+        } catch {
+            call.reject("Failed to search files: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - 系统文件选择器
 
     @objc func openSystemFilePicker(_ call: CAPPluginCall) {
         let type = call.getString("type") ?? "file"
         let multiple = call.getBool("multiple") ?? false
-        _ = call.getString("title") ?? "选择文件"
 
         DispatchQueue.main.async {
             if type == "directory" {
-                // iOS 14+ 支持目录选择
-                if #available(iOS 14.0, *) {
-                    let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
-                    documentPicker.allowsMultipleSelection = multiple
-                    documentPicker.delegate = self
-
-                    // 存储 call 以便在回调中使用
-                    self.pendingCall = call
-
-                    self.bridge?.viewController?.present(documentPicker, animated: true)
-                } else {
-                    call.reject("Directory selection requires iOS 14+")
-                }
+                self.openDirectoryPicker(call: call)
             } else {
-                // 文件选择
-                let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.item])
-                documentPicker.allowsMultipleSelection = multiple
-                documentPicker.delegate = self
-
-                self.pendingCall = call
-
-                self.bridge?.viewController?.present(documentPicker, animated: true)
+                self.openFilePicker(call: call, multiple: multiple)
             }
         }
+    }
+
+    private func openFilePicker(call: CAPPluginCall, multiple: Bool) {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
+        picker.allowsMultipleSelection = multiple
+        picker.delegate = self
+        
+        bridge?.saveCall(call)
+        bridge?.viewController?.present(picker, animated: true, completion: nil)
+    }
+
+    private func openDirectoryPicker(call: CAPPluginCall) {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
+        picker.delegate = self
+        
+        bridge?.saveCall(call)
+        bridge?.viewController?.present(picker, animated: true, completion: nil)
     }
 
     @objc func openSystemFileManager(_ call: CAPPluginCall) {
-        _ = call.getString("path")
-
-        DispatchQueue.main.async {
-            // iOS 没有独立的文件管理器应用，打开 Files 应用
-            if let url = URL(string: "shareddocuments://") {
-                if UIApplication.shared.canOpenURL(url) {
-                    UIApplication.shared.open(url) { success in
-                        if success {
-                            call.resolve()
-                        } else {
-                            call.reject("Failed to open Files app")
-                        }
-                    }
-                } else {
-                    call.reject("Files app not available")
-                }
-            } else {
-                call.reject("Invalid URL for Files app")
-            }
-        }
+        // iOS 没有直接打开文件管理器的方式
+        call.resolve()
     }
 
     @objc func openFileWithSystemApp(_ call: CAPPluginCall) {
-        guard let filePath = call.getString("filePath") else {
+        guard let filePath = call.getString("path") else {
             call.reject("File path is required")
             return
         }
 
-        let fileURL = URL(fileURLWithPath: filePath)
+        let url = URL(fileURLWithPath: filePath)
+
+        guard FileManager.default.fileExists(atPath: filePath) else {
+            call.reject("File does not exist: \(filePath)")
+            return
+        }
 
         DispatchQueue.main.async {
-            let documentController = UIDocumentInteractionController(url: fileURL)
+            let documentController = UIDocumentInteractionController(url: url)
             documentController.delegate = self
-
+            
             if let viewController = self.bridge?.viewController {
-                if documentController.presentPreview(animated: true) {
-                    call.resolve()
-                } else if documentController.presentOpenInMenu(from: viewController.view.bounds, in: viewController.view, animated: true) {
-                    call.resolve()
-                } else {
-                    call.reject("No app available to open this file type")
+                if !documentController.presentPreview(animated: true) {
+                    documentController.presentOpenInMenu(from: viewController.view.bounds, in: viewController.view, animated: true)
                 }
-            } else {
-                call.reject("View controller not available")
             }
+            
+            call.resolve()
         }
     }
 
+    // MARK: - 工具方法
+
     @objc func echo(_ call: CAPPluginCall) {
         let value = call.getString("value") ?? ""
-        call.resolve([
-            "value": implementation.echo(value)
-        ])
+        call.resolve(["value": value])
     }
-
-    // MARK: - Private Properties
-    private var pendingCall: CAPPluginCall?
 }
 
 // MARK: - UIDocumentPickerDelegate
+
 extension AdvancedFileManagerPlugin: UIDocumentPickerDelegate {
     public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let call = pendingCall else { return }
-
+        guard let call = bridge?.savedCall(withID: bridge?.savedCalls?.first?.key ?? "") else {
+            return
+        }
+        
         var files: [[String: Any]] = []
         var directories: [[String: Any]] = []
-
+        
         for url in urls {
-            // 获取文件访问权限
-            let accessing = url.startAccessingSecurityScopedResource()
-            defer {
-                if accessing {
-                    url.stopAccessingSecurityScopedResource()
-                }
-            }
-
+            var isDirectory: ObjCBool = false
+            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            
             do {
                 let resourceValues = try url.resourceValues(forKeys: [
                     .fileSizeKey,
                     .contentModificationDateKey,
                     .creationDateKey,
-                    .isDirectoryKey,
-                    .contentTypeKey
+                    .isDirectoryKey
                 ])
-
-                let isDirectory = resourceValues.isDirectory ?? false
-                let fileSize = resourceValues.fileSize ?? 0
-                let mtime = resourceValues.contentModificationDate?.timeIntervalSince1970 ?? 0
-                let ctime = resourceValues.creationDate?.timeIntervalSince1970 ?? 0
-                let contentType = resourceValues.contentType?.identifier ?? "application/octet-stream"
-
-                let fileInfo: [String: Any] = [
-                    "name": url.lastPathComponent,
-                    "path": url.path,
-                    "uri": url.absoluteString,
-                    "size": fileSize,
-                    "type": isDirectory ? "directory" : "file",
-                    "mimeType": contentType,
-                    "mtime": Int64(mtime * 1000),
-                    "ctime": Int64(ctime * 1000)
-                ]
-
-                if isDirectory {
+                
+                let fileInfo = FileUtils.createFileInfo(from: url, resourceValues: resourceValues)
+                
+                if isDirectory.boolValue {
                     directories.append(fileInfo)
                 } else {
                     files.append(fileInfo)
                 }
             } catch {
-                // 如果无法获取资源信息，创建基本信息
-                let fileInfo: [String: Any] = [
+                // 基本信息
+                let info: [String: Any] = [
                     "name": url.lastPathComponent,
                     "path": url.path,
-                    "uri": url.absoluteString,
-                    "size": 0,
-                    "type": "file",
-                    "mimeType": "application/octet-stream",
-                    "mtime": Int64(Date().timeIntervalSince1970 * 1000),
-                    "ctime": Int64(Date().timeIntervalSince1970 * 1000)
+                    "type": isDirectory.boolValue ? "directory" : "file"
                 ]
-                files.append(fileInfo)
+                
+                if isDirectory.boolValue {
+                    directories.append(info)
+                } else {
+                    files.append(info)
+                }
             }
         }
-
+        
         call.resolve([
             "files": files,
             "directories": directories,
             "cancelled": false
         ])
-
-        pendingCall = nil
+        
+        bridge?.releaseCall(call)
     }
-
+    
     public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-        guard let call = pendingCall else { return }
-
+        guard let call = bridge?.savedCall(withID: bridge?.savedCalls?.first?.key ?? "") else {
+            return
+        }
+        
         call.resolve([
             "files": [],
             "directories": [],
             "cancelled": true
         ])
-
-        pendingCall = nil
+        
+        bridge?.releaseCall(call)
     }
 }
 
 // MARK: - UIDocumentInteractionControllerDelegate
+
 extension AdvancedFileManagerPlugin: UIDocumentInteractionControllerDelegate {
     public func documentInteractionControllerViewControllerForPreview(_ controller: UIDocumentInteractionController) -> UIViewController {
         return bridge?.viewController ?? UIViewController()
