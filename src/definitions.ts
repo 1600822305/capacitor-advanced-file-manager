@@ -96,6 +96,109 @@ export interface SearchFilesResult {
   totalFound: number;
 }
 
+// ============ AI 编辑相关接口 ============
+
+// 读取文件行范围选项
+export interface ReadFileRangeOptions {
+  path: string;
+  /** 起始行号 (1-based) */
+  startLine: number;
+  /** 结束行号 (1-based, 包含) */
+  endLine: number;
+  /** 编码方式 */
+  encoding?: 'utf8' | 'base64';
+}
+
+// 读取文件行范围结果
+export interface ReadFileRangeResult {
+  /** 读取到的内容 */
+  content: string;
+  /** 文件总行数 */
+  totalLines: number;
+  /** 实际读取的起始行 */
+  startLine: number;
+  /** 实际读取的结束行 */
+  endLine: number;
+  /** 内容哈希（用于冲突检测） */
+  rangeHash: string;
+}
+
+// 插入内容选项
+export interface InsertContentOptions {
+  path: string;
+  /** 插入位置的行号 (1-based)，内容将插入到该行之前 */
+  line: number;
+  /** 要插入的内容 */
+  content: string;
+}
+
+// 查找替换选项
+export interface ReplaceInFileOptions {
+  path: string;
+  /** 要查找的字符串或正则表达式 */
+  search: string;
+  /** 替换为的内容 */
+  replace: string;
+  /** 是否使用正则表达式 */
+  isRegex?: boolean;
+  /** 是否替换所有匹配项 */
+  replaceAll?: boolean;
+  /** 是否区分大小写 */
+  caseSensitive?: boolean;
+}
+
+// 查找替换结果
+export interface ReplaceInFileResult {
+  /** 替换的次数 */
+  replacements: number;
+  /** 是否有修改 */
+  modified: boolean;
+}
+
+// 应用 Diff 选项
+export interface ApplyDiffOptions {
+  path: string;
+  /** Unified diff 格式的补丁内容 */
+  diff: string;
+  /** 是否创建备份 */
+  createBackup?: boolean;
+}
+
+// 应用 Diff 结果
+export interface ApplyDiffResult {
+  /** 是否成功应用 */
+  success: boolean;
+  /** 修改的行数 */
+  linesChanged: number;
+  /** 添加的行数 */
+  linesAdded: number;
+  /** 删除的行数 */
+  linesDeleted: number;
+  /** 备份文件路径（如果创建了备份） */
+  backupPath?: string;
+}
+
+// 获取文件哈希选项
+export interface GetFileHashOptions {
+  path: string;
+  /** 哈希算法 */
+  algorithm?: 'md5' | 'sha256';
+}
+
+// 获取文件哈希结果
+export interface GetFileHashResult {
+  /** 文件哈希值 */
+  hash: string;
+  /** 使用的算法 */
+  algorithm: string;
+}
+
+// 获取文件行数结果
+export interface GetLineCountResult {
+  /** 文件行数 */
+  lines: number;
+}
+
 // 权限检查结果
 export interface PermissionResult {
   granted: boolean;
@@ -179,6 +282,26 @@ export interface AdvancedFileManagerPlugin {
 
   // 搜索功能
   searchFiles(options: SearchFilesOptions): Promise<SearchFilesResult>;
+
+  // ============ AI 编辑相关功能 ============
+  
+  /** 读取文件指定行范围 */
+  readFileRange(options: ReadFileRangeOptions): Promise<ReadFileRangeResult>;
+  
+  /** 在指定行插入内容 */
+  insertContent(options: InsertContentOptions): Promise<void>;
+  
+  /** 查找并替换文件内容 */
+  replaceInFile(options: ReplaceInFileOptions): Promise<ReplaceInFileResult>;
+  
+  /** 应用 diff 补丁 */
+  applyDiff(options: ApplyDiffOptions): Promise<ApplyDiffResult>;
+  
+  /** 获取文件哈希值 */
+  getFileHash(options: GetFileHashOptions): Promise<GetFileHashResult>;
+  
+  /** 获取文件行数 */
+  getLineCount(options: FileOperationOptions): Promise<GetLineCountResult>;
 
   // 实用功能
   echo(options: { value: string }): Promise<{ value: string }>;

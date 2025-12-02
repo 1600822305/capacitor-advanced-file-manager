@@ -103,6 +103,12 @@ await WebEnhancedFileManager.initializeWebFS({
 * [`getFileInfo(...)`](#getfileinfo)
 * [`exists(...)`](#exists)
 * [`searchFiles(...)`](#searchfiles)
+* [`readFileRange(...)`](#readfilerange)
+* [`insertContent(...)`](#insertcontent)
+* [`replaceInFile(...)`](#replaceinfile)
+* [`applyDiff(...)`](#applydiff)
+* [`getFileHash(...)`](#getfilehash)
+* [`getLineCount(...)`](#getlinecount)
 * [`echo(...)`](#echo)
 * [Interfaces](#interfaces)
 
@@ -354,6 +360,106 @@ searchFiles(options: SearchFilesOptions) => Promise<SearchFilesResult>
 --------------------
 
 
+### readFileRange(...)
+
+```typescript
+readFileRange(options: ReadFileRangeOptions) => Promise<ReadFileRangeResult>
+```
+
+读取文件指定行范围
+
+| Param         | Type                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| **`options`** | <code><a href="#readfilerangeoptions">ReadFileRangeOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#readfilerangeresult">ReadFileRangeResult</a>&gt;</code>
+
+--------------------
+
+
+### insertContent(...)
+
+```typescript
+insertContent(options: InsertContentOptions) => Promise<void>
+```
+
+在指定行插入内容
+
+| Param         | Type                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| **`options`** | <code><a href="#insertcontentoptions">InsertContentOptions</a></code> |
+
+--------------------
+
+
+### replaceInFile(...)
+
+```typescript
+replaceInFile(options: ReplaceInFileOptions) => Promise<ReplaceInFileResult>
+```
+
+查找并替换文件内容
+
+| Param         | Type                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| **`options`** | <code><a href="#replaceinfileoptions">ReplaceInFileOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#replaceinfileresult">ReplaceInFileResult</a>&gt;</code>
+
+--------------------
+
+
+### applyDiff(...)
+
+```typescript
+applyDiff(options: ApplyDiffOptions) => Promise<ApplyDiffResult>
+```
+
+应用 diff 补丁
+
+| Param         | Type                                                          |
+| ------------- | ------------------------------------------------------------- |
+| **`options`** | <code><a href="#applydiffoptions">ApplyDiffOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#applydiffresult">ApplyDiffResult</a>&gt;</code>
+
+--------------------
+
+
+### getFileHash(...)
+
+```typescript
+getFileHash(options: GetFileHashOptions) => Promise<GetFileHashResult>
+```
+
+获取文件哈希值
+
+| Param         | Type                                                              |
+| ------------- | ----------------------------------------------------------------- |
+| **`options`** | <code><a href="#getfilehashoptions">GetFileHashOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#getfilehashresult">GetFileHashResult</a>&gt;</code>
+
+--------------------
+
+
+### getLineCount(...)
+
+```typescript
+getLineCount(options: FileOperationOptions) => Promise<GetLineCountResult>
+```
+
+获取文件行数
+
+| Param         | Type                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| **`options`** | <code><a href="#fileoperationoptions">FileOperationOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#getlinecountresult">GetLineCountResult</a>&gt;</code>
+
+--------------------
+
+
 ### echo(...)
 
 ```typescript
@@ -539,5 +645,98 @@ echo(options: { value: string; }) => Promise<{ value: string; }>
 | **`fileTypes`**  | <code>string[]</code>                      |
 | **`maxResults`** | <code>number</code>                        |
 | **`recursive`**  | <code>boolean</code>                       |
+
+
+#### ReadFileRangeResult
+
+| Prop             | Type                | Description  |
+| ---------------- | ------------------- | ------------ |
+| **`content`**    | <code>string</code> | 读取到的内容       |
+| **`totalLines`** | <code>number</code> | 文件总行数        |
+| **`startLine`**  | <code>number</code> | 实际读取的起始行     |
+| **`endLine`**    | <code>number</code> | 实际读取的结束行     |
+| **`rangeHash`**  | <code>string</code> | 内容哈希（用于冲突检测） |
+
+
+#### ReadFileRangeOptions
+
+| Prop            | Type                            | Description        |
+| --------------- | ------------------------------- | ------------------ |
+| **`path`**      | <code>string</code>             |                    |
+| **`startLine`** | <code>number</code>             | 起始行号 (1-based)     |
+| **`endLine`**   | <code>number</code>             | 结束行号 (1-based, 包含) |
+| **`encoding`**  | <code>'utf8' \| 'base64'</code> | 编码方式               |
+
+
+#### InsertContentOptions
+
+| Prop          | Type                | Description                  |
+| ------------- | ------------------- | ---------------------------- |
+| **`path`**    | <code>string</code> |                              |
+| **`line`**    | <code>number</code> | 插入位置的行号 (1-based)，内容将插入到该行之前 |
+| **`content`** | <code>string</code> | 要插入的内容                       |
+
+
+#### ReplaceInFileResult
+
+| Prop               | Type                 | Description |
+| ------------------ | -------------------- | ----------- |
+| **`replacements`** | <code>number</code>  | 替换的次数       |
+| **`modified`**     | <code>boolean</code> | 是否有修改       |
+
+
+#### ReplaceInFileOptions
+
+| Prop                | Type                 | Description   |
+| ------------------- | -------------------- | ------------- |
+| **`path`**          | <code>string</code>  |               |
+| **`search`**        | <code>string</code>  | 要查找的字符串或正则表达式 |
+| **`replace`**       | <code>string</code>  | 替换为的内容        |
+| **`isRegex`**       | <code>boolean</code> | 是否使用正则表达式     |
+| **`replaceAll`**    | <code>boolean</code> | 是否替换所有匹配项     |
+| **`caseSensitive`** | <code>boolean</code> | 是否区分大小写       |
+
+
+#### ApplyDiffResult
+
+| Prop               | Type                 | Description     |
+| ------------------ | -------------------- | --------------- |
+| **`success`**      | <code>boolean</code> | 是否成功应用          |
+| **`linesChanged`** | <code>number</code>  | 修改的行数           |
+| **`linesAdded`**   | <code>number</code>  | 添加的行数           |
+| **`linesDeleted`** | <code>number</code>  | 删除的行数           |
+| **`backupPath`**   | <code>string</code>  | 备份文件路径（如果创建了备份） |
+
+
+#### ApplyDiffOptions
+
+| Prop               | Type                 | Description          |
+| ------------------ | -------------------- | -------------------- |
+| **`path`**         | <code>string</code>  |                      |
+| **`diff`**         | <code>string</code>  | Unified diff 格式的补丁内容 |
+| **`createBackup`** | <code>boolean</code> | 是否创建备份               |
+
+
+#### GetFileHashResult
+
+| Prop            | Type                | Description |
+| --------------- | ------------------- | ----------- |
+| **`hash`**      | <code>string</code> | 文件哈希值       |
+| **`algorithm`** | <code>string</code> | 使用的算法       |
+
+
+#### GetFileHashOptions
+
+| Prop            | Type                           | Description |
+| --------------- | ------------------------------ | ----------- |
+| **`path`**      | <code>string</code>            |             |
+| **`algorithm`** | <code>'md5' \| 'sha256'</code> | 哈希算法        |
+
+
+#### GetLineCountResult
+
+| Prop        | Type                | Description |
+| ----------- | ------------------- | ----------- |
+| **`lines`** | <code>number</code> | 文件行数        |
 
 </docgen-api>

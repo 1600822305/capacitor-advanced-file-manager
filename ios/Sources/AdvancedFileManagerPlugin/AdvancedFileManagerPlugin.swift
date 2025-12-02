@@ -30,6 +30,13 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "openSystemFilePicker", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSystemFileManager", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openFileWithSystemApp", returnType: CAPPluginReturnPromise),
+        // AI 编辑操作
+        CAPPluginMethod(name: "readFileRange", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "insertContent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "replaceInFile", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "applyDiff", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getFileHash", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLineCount", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "echo", returnType: CAPPluginReturnPromise)
     ]
     
@@ -37,6 +44,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
     private let fileOps = FileOperations()
     private let dirOps = DirectoryOperations()
     private let fileSearcher = FileSearcher()
+    private let aiEditOps = AIEditOperations()
 
     // MARK: - 权限管理
 
@@ -326,6 +334,109 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             
             call.resolve()
+        }
+    }
+
+    // MARK: - AI 编辑操作
+
+    @objc func readFileRange(_ call: CAPPluginCall) {
+        guard let path = call.getString("path"),
+              let startLine = call.getInt("startLine"),
+              let endLine = call.getInt("endLine") else {
+            call.reject("path, startLine and endLine are required")
+            return
+        }
+
+        do {
+            let result = try aiEditOps.readFileRange(path: path, startLine: startLine, endLine: endLine)
+            call.resolve(result)
+        } catch {
+            call.reject("Failed to read file range: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func insertContent(_ call: CAPPluginCall) {
+        guard let path = call.getString("path"),
+              let line = call.getInt("line"),
+              let content = call.getString("content") else {
+            call.reject("path, line and content are required")
+            return
+        }
+
+        do {
+            try aiEditOps.insertContent(path: path, line: line, content: content)
+            call.resolve()
+        } catch {
+            call.reject("Failed to insert content: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func replaceInFile(_ call: CAPPluginCall) {
+        guard let path = call.getString("path"),
+              let search = call.getString("search"),
+              let replace = call.getString("replace") else {
+            call.reject("path, search and replace are required")
+            return
+        }
+
+        let isRegex = call.getBool("isRegex") ?? false
+        let replaceAll = call.getBool("replaceAll") ?? true
+        let caseSensitive = call.getBool("caseSensitive") ?? true
+
+        do {
+            let result = try aiEditOps.replaceInFile(path: path, search: search, replace: replace,
+                                                      isRegex: isRegex, replaceAll: replaceAll, 
+                                                      caseSensitive: caseSensitive)
+            call.resolve(result)
+        } catch {
+            call.reject("Failed to replace in file: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func applyDiff(_ call: CAPPluginCall) {
+        guard let path = call.getString("path"),
+              let diff = call.getString("diff") else {
+            call.reject("path and diff are required")
+            return
+        }
+
+        let createBackup = call.getBool("createBackup") ?? false
+
+        do {
+            let result = try aiEditOps.applyDiff(path: path, diff: diff, createBackup: createBackup)
+            call.resolve(result)
+        } catch {
+            call.reject("Failed to apply diff: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func getFileHash(_ call: CAPPluginCall) {
+        guard let path = call.getString("path") else {
+            call.reject("path is required")
+            return
+        }
+
+        let algorithm = call.getString("algorithm") ?? "md5"
+
+        do {
+            let result = try aiEditOps.getFileHash(path: path, algorithm: algorithm)
+            call.resolve(result)
+        } catch {
+            call.reject("Failed to get file hash: \(error.localizedDescription)")
+        }
+    }
+
+    @objc func getLineCount(_ call: CAPPluginCall) {
+        guard let path = call.getString("path") else {
+            call.reject("path is required")
+            return
+        }
+
+        do {
+            let result = try aiEditOps.getLineCount(path: path)
+            call.resolve(result)
+        } catch {
+            call.reject("Failed to get line count: \(error.localizedDescription)")
         }
     }
 

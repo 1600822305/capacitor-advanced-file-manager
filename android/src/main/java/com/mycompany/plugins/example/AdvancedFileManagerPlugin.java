@@ -26,6 +26,7 @@ import com.mycompany.plugins.example.core.FileUtils;
 import com.mycompany.plugins.example.permission.PermissionManager;
 import com.mycompany.plugins.example.picker.SystemFilePicker;
 import com.mycompany.plugins.example.search.FileSearcher;
+import com.mycompany.plugins.example.ai.AIEditOperations;
 
 import java.io.File;
 
@@ -53,6 +54,7 @@ public class AdvancedFileManagerPlugin extends Plugin {
     private PermissionManager permManager;
     private SystemFilePicker filePicker;
     private FileSearcher fileSearcher;
+    private AIEditOperations aiEditOps;
 
     @Override
     public void load() {
@@ -63,6 +65,7 @@ public class AdvancedFileManagerPlugin extends Plugin {
         permManager = new PermissionManager(this);
         filePicker = new SystemFilePicker(this);
         fileSearcher = new FileSearcher(getContext());
+        aiEditOps = new AIEditOperations(getContext());
     }
 
     // ==================== 权限管理 ====================
@@ -473,6 +476,123 @@ public class AdvancedFileManagerPlugin extends Plugin {
             call.resolve();
         } catch (Exception e) {
             call.reject("Failed to open file: " + e.getMessage());
+        }
+    }
+
+    // ==================== AI 编辑操作 ====================
+
+    @PluginMethod
+    public void readFileRange(PluginCall call) {
+        String path = call.getString("path");
+        Integer startLine = call.getInt("startLine");
+        Integer endLine = call.getInt("endLine");
+
+        if (path == null || startLine == null || endLine == null) {
+            call.reject("path, startLine and endLine are required");
+            return;
+        }
+
+        try {
+            JSObject result = aiEditOps.readFileRange(path, startLine, endLine);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Failed to read file range: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void insertContent(PluginCall call) {
+        String path = call.getString("path");
+        Integer line = call.getInt("line");
+        String content = call.getString("content");
+
+        if (path == null || line == null || content == null) {
+            call.reject("path, line and content are required");
+            return;
+        }
+
+        try {
+            aiEditOps.insertContent(path, line, content);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to insert content: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void replaceInFile(PluginCall call) {
+        String path = call.getString("path");
+        String search = call.getString("search");
+        String replace = call.getString("replace");
+        Boolean isRegex = call.getBoolean("isRegex", false);
+        Boolean replaceAll = call.getBoolean("replaceAll", true);
+        Boolean caseSensitive = call.getBoolean("caseSensitive", true);
+
+        if (path == null || search == null || replace == null) {
+            call.reject("path, search and replace are required");
+            return;
+        }
+
+        try {
+            JSObject result = aiEditOps.replaceInFile(path, search, replace, 
+                                                       isRegex, replaceAll, caseSensitive);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Failed to replace in file: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void applyDiff(PluginCall call) {
+        String path = call.getString("path");
+        String diff = call.getString("diff");
+        Boolean createBackup = call.getBoolean("createBackup", false);
+
+        if (path == null || diff == null) {
+            call.reject("path and diff are required");
+            return;
+        }
+
+        try {
+            JSObject result = aiEditOps.applyDiff(path, diff, createBackup);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Failed to apply diff: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void getFileHash(PluginCall call) {
+        String path = call.getString("path");
+        String algorithm = call.getString("algorithm", "md5");
+
+        if (path == null) {
+            call.reject("path is required");
+            return;
+        }
+
+        try {
+            JSObject result = aiEditOps.getFileHash(path, algorithm);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Failed to get file hash: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void getLineCount(PluginCall call) {
+        String path = call.getString("path");
+
+        if (path == null) {
+            call.reject("path is required");
+            return;
+        }
+
+        try {
+            JSObject result = aiEditOps.getLineCount(path);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Failed to get line count: " + e.getMessage());
         }
     }
 

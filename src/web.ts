@@ -19,7 +19,18 @@ import type {
   PermissionResult,
   SystemFilePickerOptions,
   SystemFilePickerResult,
-  SelectedFileInfo
+  SelectedFileInfo,
+  // AI 编辑相关
+  ReadFileRangeOptions,
+  ReadFileRangeResult,
+  InsertContentOptions,
+  ReplaceInFileOptions,
+  ReplaceInFileResult,
+  ApplyDiffOptions,
+  ApplyDiffResult,
+  GetFileHashOptions,
+  GetFileHashResult,
+  GetLineCountResult
 } from './definitions';
 
 export class AdvancedFileManagerWeb extends WebPlugin implements AdvancedFileManagerPlugin {
@@ -289,8 +300,8 @@ export class AdvancedFileManagerWeb extends WebPlugin implements AdvancedFileMan
         directories,
         cancelled: false
       };
-    } catch (error) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
         return {
           files: [],
           directories: [],
@@ -307,8 +318,8 @@ export class AdvancedFileManagerWeb extends WebPlugin implements AdvancedFileMan
     if (this.isFileSystemAccessSupported()) {
       try {
         await (window as any).showDirectoryPicker();
-      } catch (error) {
-        if (error.name !== 'AbortError') {
+      } catch (error: unknown) {
+        if (!(error instanceof Error) || error.name !== 'AbortError') {
           throw new Error('Cannot open system file manager in web browsers');
         }
       }
@@ -319,6 +330,32 @@ export class AdvancedFileManagerWeb extends WebPlugin implements AdvancedFileMan
 
   async openFileWithSystemApp(_filePath: string, _mimeType?: string): Promise<void> {
     throw new Error('Opening files with system apps is not supported in web browsers');
+  }
+
+  // ============ AI 编辑操作 ============
+
+  async readFileRange(_options: ReadFileRangeOptions): Promise<ReadFileRangeResult> {
+    throw new Error('Reading file ranges is not supported in web browsers for security reasons');
+  }
+
+  async insertContent(_options: InsertContentOptions): Promise<void> {
+    throw new Error('Inserting content is not supported in web browsers for security reasons');
+  }
+
+  async replaceInFile(_options: ReplaceInFileOptions): Promise<ReplaceInFileResult> {
+    throw new Error('Replacing in file is not supported in web browsers for security reasons');
+  }
+
+  async applyDiff(_options: ApplyDiffOptions): Promise<ApplyDiffResult> {
+    throw new Error('Applying diff is not supported in web browsers for security reasons');
+  }
+
+  async getFileHash(_options: GetFileHashOptions): Promise<GetFileHashResult> {
+    throw new Error('Getting file hash is not supported in web browsers for security reasons');
+  }
+
+  async getLineCount(_options: FileOperationOptions): Promise<GetLineCountResult> {
+    throw new Error('Getting line count is not supported in web browsers for security reasons');
   }
 
   private getMimeTypeFromExtension(extension: string): string {
