@@ -1,33 +1,78 @@
 {
   "name": "capacitor-advanced-file-manager",
-  "version": "0.0.1",
+  "version": "0.1.6",
   "description": "Advanced file manager plugin for Capacitor with comprehensive file system operations including browse, create, edit, delete, move, copy, and search files and directories.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/plugin.cjs.js",
+      "types": "./dist/esm/index.d.ts"
+    },
+    "./search": {
+      "import": "./dist/esm/modules/search/index.js",
+      "require": "./dist/plugin.cjs.js",
+      "types": "./dist/esm/modules/search/index.d.ts"
+    },
+    "./batch": {
+      "import": "./dist/esm/modules/batch/index.js",
+      "require": "./dist/plugin.cjs.js",
+      "types": "./dist/esm/modules/batch/index.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/esm/modules/utils/index.js",
+      "require": "./dist/plugin.cjs.js",
+      "types": "./dist/esm/modules/utils/index.d.ts"
+    },
+    "./web-enhanced": {
+      "import": "./dist/esm/modules/web-enhanced/index.js",
+      "require": "./dist/plugin.cjs.js",
+      "types": "./dist/esm/modules/web-enhanced/index.d.ts"
+    }
+  },
   "unpkg": "dist/plugin.js",
   "files": [
+    "src/",
     "android/src/main/",
     "android/build.gradle",
     "dist/",
     "ios/Sources",
     "ios/Tests",
     "Package.swift",
-    "CapacitorAdvancedFileManager.podspec"
+    "CapacitorAdvancedFileManager.podspec",
+    "MODULAR_USAGE.md",
+    "WEB_BREAKTHROUGH_GUIDE.md",
+    "examples/"
   ],
-  "author": "1600822305",
+  "author": {
+    "name": "Cherry Developer",
+    "email": "developer@example.com"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/temp/capacitor-advanced-file-manager.git"
+    "url": "git+https://github.com/your-username/capacitor-advanced-file-manager.git"
   },
   "bugs": {
-    "url": "https://github.com/temp/capacitor-advanced-file-manager/issues"
+    "url": "https://github.com/your-username/capacitor-advanced-file-manager/issues"
   },
+  "homepage": "https://github.com/your-username/capacitor-advanced-file-manager#readme",
   "keywords": [
     "capacitor",
     "plugin",
-    "native"
+    "native",
+    "file-manager",
+    "file-system",
+    "android",
+    "ios",
+    "web",
+    "file-operations",
+    "directory",
+    "mt-manager",
+    "file-browser",
+    "cross-platform"
   ],
   "scripts": {
     "verify": "npm run verify:ios && npm run verify:android && npm run verify:web",

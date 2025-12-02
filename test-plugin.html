@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced File Manager Plugin Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            background: #007cba;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .output {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            background: #ffe6e6;
+            color: #d00;
+        }
+        .success {
+            background: #e6ffe6;
+            color: #080;
+        }
+    </style>
+</head>
+<body>
+    <h1>Advanced File Manager Plugin Test</h1>
+    
+    <div class="test-section">
+        <h2>权限测试</h2>
+        <button onclick="testPermissions()">检查权限</button>
+        <button onclick="requestPermissions()">请求权限</button>
+        <div id="permissions-output" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Echo 测试</h2>
+        <button onclick="testEcho()">测试 Echo</button>
+        <div id="echo-output" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>文件操作测试</h2>
+        <button onclick="testCreateFile()">创建文件</button>
+        <button onclick="testReadFile()">读取文件</button>
+        <button onclick="testWriteFile()">写入文件</button>
+        <button onclick="testDeleteFile()">删除文件</button>
+        <div id="file-output" class="output"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>目录操作测试</h2>
+        <button onclick="testListDirectory()">列出目录</button>
+        <button onclick="testCreateDirectory()">创建目录</button>
+        <button onclick="testDeleteDirectory()">删除目录</button>
+        <div id="directory-output" class="output"></div>
+    </div>
+
+    <script type="module">
+        import { AdvancedFileManager } from './dist/esm/index.js';
+
+        window.AdvancedFileManager = AdvancedFileManager;
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            element.innerHTML = `[${timestamp}] ${message}`;
+            element.className = `output ${className}`;
+        }
+
+        window.testPermissions = async function() {
+            try {
+                const result = await AdvancedFileManager.checkPermissions();
+                log('permissions-output', `权限检查结果: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log('permissions-output', `权限检查失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.requestPermissions = async function() {
+            try {
+                const result = await AdvancedFileManager.requestPermissions();
+                log('permissions-output', `权限请求结果: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log('permissions-output', `权限请求失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testEcho = async function() {
+            try {
+                const result = await AdvancedFileManager.echo({ value: 'Hello from Advanced File Manager!' });
+                log('echo-output', `Echo 结果: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log('echo-output', `Echo 测试失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testCreateFile = async function() {
+            try {
+                await AdvancedFileManager.createFile({
+                    path: '/storage/emulated/0/test-file.txt',
+                    content: 'Hello from Advanced File Manager Plugin!',
+                    encoding: 'utf8'
+                });
+                log('file-output', '文件创建成功!', 'success');
+            } catch (error) {
+                log('file-output', `文件创建失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testReadFile = async function() {
+            try {
+                const result = await AdvancedFileManager.readFile({
+                    path: '/storage/emulated/0/test-file.txt',
+                    encoding: 'utf8'
+                });
+                log('file-output', `文件读取成功: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log('file-output', `文件读取失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testWriteFile = async function() {
+            try {
+                await AdvancedFileManager.writeFile({
+                    path: '/storage/emulated/0/test-file.txt',
+                    content: 'Updated content from Advanced File Manager Plugin!',
+                    encoding: 'utf8',
+                    append: false
+                });
+                log('file-output', '文件写入成功!', 'success');
+            } catch (error) {
+                log('file-output', `文件写入失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testDeleteFile = async function() {
+            try {
+                await AdvancedFileManager.deleteFile({
+                    path: '/storage/emulated/0/test-file.txt'
+                });
+                log('file-output', '文件删除成功!', 'success');
+            } catch (error) {
+                log('file-output', `文件删除失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testListDirectory = async function() {
+            try {
+                const result = await AdvancedFileManager.listDirectory({
+                    path: '/storage/emulated/0',
+                    showHidden: false,
+                    sortBy: 'name',
+                    sortOrder: 'asc'
+                });
+                log('directory-output', `目录列表: ${JSON.stringify(result, null, 2)}`, 'success');
+            } catch (error) {
+                log('directory-output', `目录列表失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testCreateDirectory = async function() {
+            try {
+                await AdvancedFileManager.createDirectory({
+                    path: '/storage/emulated/0/test-directory',
+                    recursive: true
+                });
+                log('directory-output', '目录创建成功!', 'success');
+            } catch (error) {
+                log('directory-output', `目录创建失败: ${error.message}`, 'error');
+            }
+        };
+
+        window.testDeleteDirectory = async function() {
+            try {
+                await AdvancedFileManager.deleteDirectory({
+                    path: '/storage/emulated/0/test-directory'
+                });
+                log('directory-output', '目录删除成功!', 'success');
+            } catch (error) {
+                log('directory-output', `目录删除失败: ${error.message}`, 'error');
+            }
+        };
+    </script>
+</body>
+</html>
