@@ -1,6 +1,10 @@
 package com.mycompany.plugins.example.core;
 
+import android.content.ContentResolver;
 import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.util.Log;
 
 import com.getcapacitor.JSArray;
@@ -29,6 +33,11 @@ public class DirectoryOperations {
      * 列出目录内容
      */
     public JSObject listDirectory(String path, boolean showHidden, String sortBy, String sortOrder) throws Exception {
+        // 处理 content:// URI
+        if (path.startsWith("content://")) {
+            return listDirectoryFromUri(path, showHidden, sortBy, sortOrder);
+        }
+
         File directory = new File(path);
 
         Log.d(TAG, "Listing directory: " + path);
@@ -123,6 +132,87 @@ public class DirectoryOperations {
 
         if (!FileUtils.deleteRecursively(directory)) {
             throw new Exception("Failed to delete directory: " + path);
+        }
+    }
+
+    /**
+     * 从 content:// URI 列出目录内容
+     */
+    private JSObject listDirectoryFromUri(String uriString, boolean showHidden, String sortBy, String sortOrder) throws Exception {
+        Uri uri = Uri.parse(uriString);
+        ContentResolver contentResolver = context.getContentResolver();
+
+        try {
+            // 获取文档 ID
+            String documentId = DocumentsContract.getTreeDocumentId(uri);
+            
+            // 构建子文档 URI
+            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, documentId);
+
+            Log.d(TAG, "Listing directory from URI: " + uriString);
+            Log.d(TAG, "Document ID: " + documentId);
+            Log.d(TAG, "Children URI: " + childrenUri.toString());
+
+            Cursor cursor = contentResolver.query(
+                childrenUri,
+                new String[]{
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_SIZE,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    DocumentsContract.Document.COLUMN_LAST_MODIFIED
+                },
+                null,
+                null,
+                null
+            );
+
+            if (cursor == null) {
+                throw new Exception("Cannot access directory: " + uriString);
+            }
+
+            JSArray filesArray = new JSArray();
+
+            while (cursor.moveToNext()) {
+                String docId = cursor.getString(0);
+                String displayName = cursor.getString(1);
+                long size = cursor.getLong(2);
+                String mimeType = cursor.getString(3);
+                long lastModified = cursor.getLong(4);
+
+                // 过滤隐藏文件
+                if (!showHidden && displayName != null && displayName.startsWith(".")) {
+                    continue;
+                }
+
+                boolean isDirectory = DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType);
+
+                JSObject fileInfo = new JSObject();
+                fileInfo.put("name", displayName != null ? displayName : "unknown");
+                fileInfo.put("path", DocumentsContract.buildDocumentUriUsingTree(uri, docId).toString());
+                fileInfo.put("size", size);
+                fileInfo.put("type", isDirectory ? "directory" : "file");
+                fileInfo.put("mtime", lastModified);
+                fileInfo.put("ctime", lastModified);
+                fileInfo.put("isHidden", displayName != null && displayName.startsWith("."));
+                fileInfo.put("permissions", "rw-");
+
+                filesArray.put(fileInfo);
+            }
+
+            cursor.close();
+
+            Log.d(TAG, "Found " + filesArray.length() + " files in URI directory");
+
+            JSObject result = new JSObject();
+            result.put("files", filesArray);
+            result.put("totalCount", filesArray.length());
+
+            return result;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to list directory from URI: " + e.getMessage(), e);
+            throw new Exception("Failed to list directory from URI: " + e.getMessage());
         }
     }
 

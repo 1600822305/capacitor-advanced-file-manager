@@ -45,6 +45,9 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
     private let dirOps = DirectoryOperations()
     private let fileSearcher = FileSearcher()
     private let aiEditOps = AIEditOperations()
+    
+    // 保存当前 call ID 用于文件选择器回调
+    private var currentCallId: String?
 
     // MARK: - 权限管理
 
@@ -294,6 +297,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         picker.delegate = self
         
         bridge?.saveCall(call)
+        currentCallId = call.callbackId
         bridge?.viewController?.present(picker, animated: true, completion: nil)
     }
 
@@ -302,6 +306,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         picker.delegate = self
         
         bridge?.saveCall(call)
+        currentCallId = call.callbackId
         bridge?.viewController?.present(picker, animated: true, completion: nil)
     }
 
@@ -452,9 +457,11 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
 
 extension AdvancedFileManagerPlugin: UIDocumentPickerDelegate {
     public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-        guard let call = bridge?.savedCall(withID: bridge?.savedCalls?.first?.key ?? "") else {
+        guard let callId = currentCallId,
+              let call = bridge?.savedCall(withID: callId) else {
             return
         }
+        currentCallId = nil
         
         var files: [[String: Any]] = []
         var directories: [[String: Any]] = []
@@ -504,9 +511,11 @@ extension AdvancedFileManagerPlugin: UIDocumentPickerDelegate {
     }
     
     public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-        guard let call = bridge?.savedCall(withID: bridge?.savedCalls?.first?.key ?? "") else {
+        guard let callId = currentCallId,
+              let call = bridge?.savedCall(withID: callId) else {
             return
         }
+        currentCallId = nil
         
         call.resolve([
             "files": [],
