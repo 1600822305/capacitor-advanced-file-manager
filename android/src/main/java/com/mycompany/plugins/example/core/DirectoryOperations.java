@@ -136,22 +136,28 @@ public class DirectoryOperations {
     }
 
     /**
-     * 从 content:// URI 列出目录内容
+     * 从 content:// URI 列出目录内容（与模块化前完全一致）
      */
     private JSObject listDirectoryFromUri(String uriString, boolean showHidden, String sortBy, String sortOrder) throws Exception {
         Uri uri = Uri.parse(uriString);
         ContentResolver contentResolver = context.getContentResolver();
 
-        try {
-            // 获取文档 ID
-            String documentId = DocumentsContract.getTreeDocumentId(uri);
-            
-            // 构建子文档 URI
-            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, documentId);
+        if (!DocumentsContract.isDocumentUri(context, uri)) {
+            // 对于 Tree URI，尝试使用 getTreeDocumentId
+            try {
+                String treeDocId = DocumentsContract.getTreeDocumentId(uri);
+                if (treeDocId != null) {
+                    // 这是一个 Tree URI，继续处理
+                    Log.d(TAG, "Processing as Tree URI with docId: " + treeDocId);
+                }
+            } catch (Exception e) {
+                throw new Exception("URI is not a valid document or tree URI: " + uriString);
+            }
+        }
 
-            Log.d(TAG, "Listing directory from URI: " + uriString);
-            Log.d(TAG, "Document ID: " + documentId);
-            Log.d(TAG, "Children URI: " + childrenUri.toString());
+        try {
+            // 获取目录的子文档
+            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri));
 
             Cursor cursor = contentResolver.query(
                 childrenUri,
@@ -174,35 +180,33 @@ public class DirectoryOperations {
             JSArray filesArray = new JSArray();
 
             while (cursor.moveToNext()) {
-                String docId = cursor.getString(0);
+                String documentId = cursor.getString(0);
                 String displayName = cursor.getString(1);
                 long size = cursor.getLong(2);
                 String mimeType = cursor.getString(3);
                 long lastModified = cursor.getLong(4);
 
                 // 过滤隐藏文件
-                if (!showHidden && displayName != null && displayName.startsWith(".")) {
+                if (!showHidden && displayName.startsWith(".")) {
                     continue;
                 }
 
                 boolean isDirectory = DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType);
 
                 JSObject fileInfo = new JSObject();
-                fileInfo.put("name", displayName != null ? displayName : "unknown");
-                fileInfo.put("path", DocumentsContract.buildDocumentUriUsingTree(uri, docId).toString());
+                fileInfo.put("name", displayName);
+                fileInfo.put("path", DocumentsContract.buildDocumentUriUsingTree(uri, documentId).toString());
                 fileInfo.put("size", size);
                 fileInfo.put("type", isDirectory ? "directory" : "file");
                 fileInfo.put("mtime", lastModified);
                 fileInfo.put("ctime", lastModified);
-                fileInfo.put("isHidden", displayName != null && displayName.startsWith("."));
+                fileInfo.put("isHidden", displayName.startsWith("."));
                 fileInfo.put("permissions", "rw-");
 
                 filesArray.put(fileInfo);
             }
 
             cursor.close();
-
-            Log.d(TAG, "Found " + filesArray.length() + " files in URI directory");
 
             JSObject result = new JSObject();
             result.put("files", filesArray);
@@ -211,7 +215,6 @@ public class DirectoryOperations {
             return result;
 
         } catch (Exception e) {
-            Log.e(TAG, "Failed to list directory from URI: " + e.getMessage(), e);
             throw new Exception("Failed to list directory from URI: " + e.getMessage());
         }
     }
