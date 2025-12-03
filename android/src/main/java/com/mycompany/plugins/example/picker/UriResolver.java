@@ -25,9 +25,22 @@ public class UriResolver {
     public String getRealPathFromUri(Uri uri) {
         try {
             if ("content".equals(uri.getScheme())) {
+                String docId = null;
+                
+                // 先尝试作为 Document URI 处理
                 if (DocumentsContract.isDocumentUri(context, uri)) {
-                    String docId = DocumentsContract.getDocumentId(uri);
+                    docId = DocumentsContract.getDocumentId(uri);
+                } else {
+                    // 尝试作为 Tree URI 处理（选择目录时返回的）
+                    try {
+                        docId = DocumentsContract.getTreeDocumentId(uri);
+                    } catch (Exception e) {
+                        // 不是 Tree URI，尝试其他方式
+                        return getDataColumn(uri, null, null);
+                    }
+                }
 
+                if (docId != null) {
                     if ("com.android.externalstorage.documents".equals(uri.getAuthority())) {
                         return handleExternalStorageDocument(docId);
                     } else if ("com.android.providers.downloads.documents".equals(uri.getAuthority())) {
@@ -35,8 +48,6 @@ public class UriResolver {
                     } else if ("com.android.providers.media.documents".equals(uri.getAuthority())) {
                         return handleMediaDocument(docId);
                     }
-                } else {
-                    return getDataColumn(uri, null, null);
                 }
             } else if ("file".equals(uri.getScheme())) {
                 return uri.getPath();
