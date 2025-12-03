@@ -24,32 +24,28 @@ public class UriResolver {
      */
     public String getRealPathFromUri(Uri uri) {
         try {
+            // 对于 content:// URI，尝试获取真实路径
             if ("content".equals(uri.getScheme())) {
-                String docId = null;
-                
-                // 先尝试作为 Document URI 处理
                 if (DocumentsContract.isDocumentUri(context, uri)) {
-                    docId = DocumentsContract.getDocumentId(uri);
-                } else {
-                    // 尝试作为 Tree URI 处理（选择目录时返回的）
-                    try {
-                        docId = DocumentsContract.getTreeDocumentId(uri);
-                    } catch (Exception e) {
-                        // 不是 Tree URI，尝试其他方式
-                        return getDataColumn(uri, null, null);
-                    }
-                }
+                    // 处理 Documents Provider
+                    String docId = DocumentsContract.getDocumentId(uri);
 
-                if (docId != null) {
                     if ("com.android.externalstorage.documents".equals(uri.getAuthority())) {
+                        // 外部存储 - 这是最常见的情况
                         return handleExternalStorageDocument(docId);
                     } else if ("com.android.providers.downloads.documents".equals(uri.getAuthority())) {
+                        // 下载目录
                         return handleDownloadsDocument(docId);
                     } else if ("com.android.providers.media.documents".equals(uri.getAuthority())) {
+                        // 媒体文件
                         return handleMediaDocument(docId);
                     }
+                } else {
+                    // 普通 content URI
+                    return getDataColumn(uri, null, null);
                 }
             } else if ("file".equals(uri.getScheme())) {
+                // 文件 URI
                 return uri.getPath();
             }
         } catch (Exception e) {
