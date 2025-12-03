@@ -374,6 +374,7 @@ public class AdvancedFileManagerPlugin extends Plugin {
 
         if (result.getResultCode() == getActivity().RESULT_OK && result.getData() != null) {
             Intent data = result.getData();
+            String requestType = call.getString("type", "file");
 
             // 处理多选
             if (data.getClipData() != null) {
@@ -381,22 +382,24 @@ public class AdvancedFileManagerPlugin extends Plugin {
                 for (int i = 0; i < count; i++) {
                     Uri uri = data.getClipData().getItemAt(i).getUri();
                     JSObject fileInfo = filePicker.getFileInfoFromUri(uri);
-
-                    if ("directory".equals(fileInfo.getString("type"))) {
-                        directories.put(fileInfo);
-                    } else {
-                        files.put(fileInfo);
+                    if (fileInfo != null) {
+                        if ("directory".equals(fileInfo.getString("type"))) {
+                            directories.put(fileInfo);
+                        } else {
+                            files.put(fileInfo);
+                        }
                     }
                 }
             } else if (data.getData() != null) {
                 // 处理单选
                 Uri uri = data.getData();
                 JSObject fileInfo = filePicker.getFileInfoFromUri(uri);
-
-                if ("directory".equals(fileInfo.getString("type"))) {
-                    directories.put(fileInfo);
-                } else {
-                    files.put(fileInfo);
+                if (fileInfo != null) {
+                    if ("directory".equals(requestType) || "directory".equals(fileInfo.getString("type"))) {
+                        directories.put(fileInfo);
+                    } else {
+                        files.put(fileInfo);
+                    }
                 }
             }
 
