@@ -136,28 +136,27 @@ public class DirectoryOperations {
     }
 
     /**
-     * 从 content:// URI 列出目录内容（与模块化前完全一致）
+     * 从 content:// URI 列出目录内容
      */
     private JSObject listDirectoryFromUri(String uriString, boolean showHidden, String sortBy, String sortOrder) throws Exception {
         Uri uri = Uri.parse(uriString);
         ContentResolver contentResolver = context.getContentResolver();
 
-        if (!DocumentsContract.isDocumentUri(context, uri)) {
-            // 对于 Tree URI，尝试使用 getTreeDocumentId
-            try {
-                String treeDocId = DocumentsContract.getTreeDocumentId(uri);
-                if (treeDocId != null) {
-                    // 这是一个 Tree URI，继续处理
-                    Log.d(TAG, "Processing as Tree URI with docId: " + treeDocId);
-                }
-            } catch (Exception e) {
-                throw new Exception("URI is not a valid document or tree URI: " + uriString);
-            }
-        }
-
         try {
+            // 判断是 Document URI 还是 Tree URI，并获取正确的 document ID
+            String documentId;
+            if (DocumentsContract.isDocumentUri(context, uri)) {
+                // Document URI - 使用 getDocumentId
+                documentId = DocumentsContract.getDocumentId(uri);
+                Log.d(TAG, "Processing as Document URI with docId: " + documentId);
+            } else {
+                // Tree URI - 使用 getTreeDocumentId
+                documentId = DocumentsContract.getTreeDocumentId(uri);
+                Log.d(TAG, "Processing as Tree URI with docId: " + documentId);
+            }
+
             // 获取目录的子文档
-            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri));
+            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, documentId);
 
             Cursor cursor = contentResolver.query(
                 childrenUri,
@@ -187,20 +186,20 @@ public class DirectoryOperations {
                 long lastModified = cursor.getLong(4);
 
                 // 过滤隐藏文件
-                if (!showHidden && displayName.startsWith(".")) {
+                if (!showHidden && displayName != null && displayName.startsWith(".")) {
                     continue;
                 }
 
                 boolean isDirectory = DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType);
 
                 JSObject fileInfo = new JSObject();
-                fileInfo.put("name", displayName);
+                fileInfo.put("name", displayName != null ? displayName : "unknown");
                 fileInfo.put("path", DocumentsContract.buildDocumentUriUsingTree(uri, documentId).toString());
                 fileInfo.put("size", size);
                 fileInfo.put("type", isDirectory ? "directory" : "file");
                 fileInfo.put("mtime", lastModified);
                 fileInfo.put("ctime", lastModified);
-                fileInfo.put("isHidden", displayName.startsWith("."));
+                fileInfo.put("isHidden", displayName != null && displayName.startsWith("."));
                 fileInfo.put("permissions", "rw-");
 
                 filesArray.put(fileInfo);
