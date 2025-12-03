@@ -179,7 +179,7 @@ public class DirectoryOperations {
             JSArray filesArray = new JSArray();
 
             while (cursor.moveToNext()) {
-                String documentId = cursor.getString(0);
+                String docId = cursor.getString(0);
                 String displayName = cursor.getString(1);
                 long size = cursor.getLong(2);
                 String mimeType = cursor.getString(3);
@@ -194,7 +194,7 @@ public class DirectoryOperations {
 
                 JSObject fileInfo = new JSObject();
                 fileInfo.put("name", displayName != null ? displayName : "unknown");
-                fileInfo.put("path", DocumentsContract.buildDocumentUriUsingTree(uri, documentId).toString());
+                fileInfo.put("path", DocumentsContract.buildDocumentUriUsingTree(uri, docId).toString());
                 fileInfo.put("size", size);
                 fileInfo.put("type", isDirectory ? "directory" : "file");
                 fileInfo.put("mtime", lastModified);
