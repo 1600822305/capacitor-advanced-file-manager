@@ -96,6 +96,82 @@ export interface SearchFilesResult {
   totalFound: number;
 }
 
+// ============ 内容搜索相关接口（原生层搜索，避免 OOM）============
+
+/**
+ * 内容搜索匹配项
+ */
+export interface ContentMatch {
+  /** 匹配的行号 (1-based) */
+  lineNumber: number;
+  /** 匹配的行内容 */
+  lineContent: string;
+  /** 匹配的上下文（带高亮标记位置） */
+  context: string;
+  /** 匹配开始位置（在 context 中） */
+  matchStart: number;
+  /** 匹配结束位置（在 context 中） */
+  matchEnd: number;
+}
+
+/**
+ * 单个文件的内容搜索结果
+ */
+export interface ContentSearchFileResult {
+  /** 文件路径 */
+  path: string;
+  /** 文件名 */
+  name: string;
+  /** 匹配类型 */
+  matchType: 'filename' | 'content' | 'both';
+  /** 匹配列表 */
+  matches: ContentMatch[];
+  /** 相关性评分 */
+  score: number;
+}
+
+/**
+ * 内容搜索选项
+ */
+export interface SearchContentOptions {
+  /** 搜索目录 */
+  directory: string;
+  /** 搜索关键词 */
+  keyword: string;
+  /** 是否区分大小写 */
+  caseSensitive?: boolean;
+  /** 文件扩展名过滤（如 ['.md', '.txt']） */
+  fileExtensions?: string[];
+  /** 最大搜索文件数 */
+  maxFiles?: number;
+  /** 最大文件大小（字节），超过的文件将被跳过 */
+  maxFileSize?: number;
+  /** 每个文件最大匹配数 */
+  maxMatchesPerFile?: number;
+  /** 上下文长度（匹配前后的字符数） */
+  contextLength?: number;
+  /** 最大递归深度 */
+  maxDepth?: number;
+  /** 是否递归搜索子目录 */
+  recursive?: boolean;
+}
+
+/**
+ * 内容搜索结果
+ */
+export interface SearchContentResult {
+  /** 搜索结果列表 */
+  results: ContentSearchFileResult[];
+  /** 总匹配文件数 */
+  totalFiles: number;
+  /** 总匹配数 */
+  totalMatches: number;
+  /** 搜索耗时（毫秒） */
+  duration: number;
+  /** 被跳过的文件数（因文件过大等原因） */
+  skippedFiles: number;
+}
+
 // ============ AI 编辑相关接口 ============
 
 // 读取文件行范围选项
@@ -282,6 +358,12 @@ export interface AdvancedFileManagerPlugin {
 
   // 搜索功能
   searchFiles(options: SearchFilesOptions): Promise<SearchFilesResult>;
+  
+  /**
+   * 原生层内容搜索（避免 OOM）
+   * 在原生层执行搜索，只返回匹配结果，不返回完整文件内容
+   */
+  searchContent(options: SearchContentOptions): Promise<SearchContentResult>;
 
   // ============ AI 编辑相关功能 ============
   

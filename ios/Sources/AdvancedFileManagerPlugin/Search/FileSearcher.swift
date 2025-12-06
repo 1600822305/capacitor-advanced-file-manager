@@ -145,4 +145,236 @@ public class FileSearcher {
             return try! NSRegularExpression(pattern: escapedQuery, options: .caseInsensitive)
         }
     }
+    
+    // MARK: - 原生内容搜索 API
+    
+    /// 原生层内容搜索，避免 OOM
+    public func searchContent(directory: String, keyword: String, caseSensitive: Bool,
+                              fileExtensions: [String]?, maxFiles: Int, maxFileSize: Int,
+                              maxMatchesPerFile: Int, contextLength: Int, maxDepth: Int,
+                              recursive: Bool) throws -> [String: Any] {
+        let startTime = Date()
+        let url = URL(fileURLWithPath: directory)
+        
+        guard fileManager.fileExists(atPath: directory) else {
+            throw NSError(domain: "FileSearcher", code: 404, 
+                         userInfo: [NSLocalizedDescriptionKey: "Directory does not exist: \(directory)"])
+        }
+        
+        // 使用默认值
+        let effectiveMaxFiles = maxFiles > 0 ? maxFiles : 100
+        let effectiveMaxFileSize = maxFileSize > 0 ? maxFileSize : 500 * 1024
+        let effectiveMaxMatchesPerFile = maxMatchesPerFile > 0 ? maxMatchesPerFile : 10
+        let effectiveContextLength = contextLength > 0 ? contextLength : 40
+        let effectiveMaxDepth = maxDepth > 0 ? maxDepth : 5
+        
+        // 创建搜索模式
+        let options: NSRegularExpression.Options = caseSensitive ? [] : .caseInsensitive
+        let pattern = try NSRegularExpression(pattern: NSRegularExpression.escapedPattern(for: keyword), options: options)
+        
+        var results: [[String: Any]] = []
+        var skippedCount = 0
+        var totalMatches = 0
+        
+        try searchContentInDirectory(
+            url: url, keyword: keyword, pattern: pattern, fileExtensions: fileExtensions,
+            maxFiles: effectiveMaxFiles, maxFileSize: effectiveMaxFileSize,
+            maxMatchesPerFile: effectiveMaxMatchesPerFile, contextLength: effectiveContextLength,
+            maxDepth: effectiveMaxDepth, recursive: recursive, currentDepth: 0,
+            results: &results, skippedCount: &skippedCount, totalMatches: &totalMatches
+        )
+        
+        // 按评分排序
+        results.sort { ($0["score"] as? Int ?? 0) > ($1["score"] as? Int ?? 0) }
+        
+        let duration = Int(Date().timeIntervalSince(startTime) * 1000)
+        
+        return [
+            "results": results,
+            "totalFiles": results.count,
+            "totalMatches": totalMatches,
+            "duration": duration,
+            "skippedFiles": skippedCount
+        ]
+    }
+    
+    private func searchContentInDirectory(url: URL, keyword: String, pattern: NSRegularExpression,
+                                          fileExtensions: [String]?, maxFiles: Int, maxFileSize: Int,
+                                          maxMatchesPerFile: Int, contextLength: Int, maxDepth: Int,
+                                          recursive: Bool, currentDepth: Int,
+                                          results: inout [[String: Any]], skippedCount: inout Int,
+                                          totalMatches: inout Int) throws {
+        // 检查深度限制
+        if currentDepth >= maxDepth {
+            return
+        }
+        
+        // 检查结果数量限制
+        if results.count >= maxFiles {
+            return
+        }
+        
+        let contents = try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: [
+            .fileSizeKey, .isDirectoryKey
+        ], options: [.skipsHiddenFiles])
+        
+        for fileURL in contents {
+            if results.count >= maxFiles {
+                break
+            }
+            
+            let resourceValues = try fileURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
+            let isDirectory = resourceValues.isDirectory ?? false
+            
+            if isDirectory {
+                if recursive {
+                    try searchContentInDirectory(
+                        url: fileURL, keyword: keyword, pattern: pattern, fileExtensions: fileExtensions,
+                        maxFiles: maxFiles, maxFileSize: maxFileSize, maxMatchesPerFile: maxMatchesPerFile,
+                        contextLength: contextLength, maxDepth: maxDepth, recursive: recursive,
+                        currentDepth: currentDepth + 1, results: &results, skippedCount: &skippedCount,
+                        totalMatches: &totalMatches
+                    )
+                }
+            } else {
+                // 检查文件扩展名
+                if let extensions = fileExtensions, !extensions.isEmpty {
+                    let ext = FileUtils.getFileExtension(fileURL.lastPathComponent)
+                    let matches = extensions.contains { filterExt in
+                        let cleanExt = filterExt.hasPrefix(".") ? String(filterExt.dropFirst()) : filterExt
+                        return cleanExt.lowercased() == ext.lowercased()
+                    }
+                    if !matches {
+                        continue
+                    }
+                }
+                
+                // 检查是否为文本文件
+                if !isTextFile(fileURL.lastPathComponent) {
+                    continue
+                }
+                
+                // 检查文件大小
+                let fileSize = resourceValues.fileSize ?? 0
+                if fileSize > maxFileSize {
+                    skippedCount += 1
+                    continue
+                }
+                
+                // 搜索文件内容
+                if let fileResult = searchInSingleFile(fileURL: fileURL, keyword: keyword, pattern: pattern,
+                                                       maxMatchesPerFile: maxMatchesPerFile,
+                                                       contextLength: contextLength) {
+                    results.append(fileResult)
+                    totalMatches += fileResult["matchCount"] as? Int ?? 0
+                }
+            }
+        }
+    }
+    
+    private func searchInSingleFile(fileURL: URL, keyword: String, pattern: NSRegularExpression,
+                                    maxMatchesPerFile: Int, contextLength: Int) -> [String: Any]? {
+        let fileName = fileURL.lastPathComponent
+        let nameMatch = fileName.lowercased().contains(keyword.lowercased())
+        var matches: [[String: Any]] = []
+        
+        do {
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+            let lines = content.components(separatedBy: .newlines)
+            
+            for (index, line) in lines.enumerated() {
+                if matches.count >= maxMatchesPerFile {
+                    break
+                }
+                
+                let range = NSRange(line.startIndex..., in: line)
+                let matchResults = pattern.matches(in: line, options: [], range: range)
+                
+                for matchResult in matchResults {
+                    if matches.count >= maxMatchesPerFile {
+                        break
+                    }
+                    
+                    guard let matchRange = Range(matchResult.range, in: line) else { continue }
+                    
+                    let matchStart = line.distance(from: line.startIndex, to: matchRange.lowerBound)
+                    let matchEnd = line.distance(from: line.startIndex, to: matchRange.upperBound)
+                    
+                    // 构建上下文
+                    let contextStart = max(0, matchStart - 2)
+                    let contextEnd = min(line.count, matchEnd + contextLength)
+                    
+                    let startIndex = line.index(line.startIndex, offsetBy: contextStart)
+                    let endIndex = line.index(line.startIndex, offsetBy: contextEnd)
+                    
+                    let prefix = contextStart > 0 ? "..." : ""
+                    let context = prefix + String(line[startIndex..<endIndex])
+                    
+                    let adjustedStart = matchStart - contextStart + prefix.count
+                    let adjustedEnd = adjustedStart + (matchEnd - matchStart)
+                    
+                    let lineContent = line.count > 200 ? String(line.prefix(200)) + "..." : line
+                    
+                    matches.append([
+                        "lineNumber": index + 1,
+                        "lineContent": lineContent,
+                        "context": context,
+                        "matchStart": adjustedStart,
+                        "matchEnd": adjustedEnd
+                    ])
+                }
+            }
+        } catch {
+            return nil
+        }
+        
+        // 如果没有匹配且文件名也不匹配
+        if matches.isEmpty && !nameMatch {
+            return nil
+        }
+        
+        // 计算评分
+        let score = calculateScore(fileName: fileName, keyword: keyword, matchCount: matches.count, nameMatch: nameMatch)
+        
+        let matchType: String
+        if nameMatch && !matches.isEmpty {
+            matchType = "both"
+        } else if nameMatch {
+            matchType = "filename"
+        } else {
+            matchType = "content"
+        }
+        
+        return [
+            "path": fileURL.path,
+            "name": fileName,
+            "matchType": matchType,
+            "score": score,
+            "matchCount": matches.count,
+            "matches": matches
+        ]
+    }
+    
+    private func calculateScore(fileName: String, keyword: String, matchCount: Int, nameMatch: Bool) -> Int {
+        var score = 0
+        let lowerName = fileName.lowercased()
+        let lowerKeyword = keyword.lowercased()
+        
+        // 完全匹配文件名
+        if lowerName == lowerKeyword || lowerName == "\(lowerKeyword).md" {
+            score += 200
+        } else if lowerName.contains(lowerKeyword) {
+            score += 100
+        }
+        
+        // 内容匹配数量
+        score += min(matchCount * 2, 50)
+        
+        // 既匹配文件名又匹配内容
+        if nameMatch && matchCount > 0 {
+            score += 50
+        }
+        
+        return score
+    }
 }

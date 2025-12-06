@@ -103,6 +103,7 @@ await WebEnhancedFileManager.initializeWebFS({
 * [`getFileInfo(...)`](#getfileinfo)
 * [`exists(...)`](#exists)
 * [`searchFiles(...)`](#searchfiles)
+* [`searchContent(...)`](#searchcontent)
 * [`readFileRange(...)`](#readfilerange)
 * [`insertContent(...)`](#insertcontent)
 * [`replaceInFile(...)`](#replaceinfile)
@@ -356,6 +357,24 @@ searchFiles(options: SearchFilesOptions) => Promise<SearchFilesResult>
 | **`options`** | <code><a href="#searchfilesoptions">SearchFilesOptions</a></code> |
 
 **Returns:** <code>Promise&lt;<a href="#searchfilesresult">SearchFilesResult</a>&gt;</code>
+
+--------------------
+
+
+### searchContent(...)
+
+```typescript
+searchContent(options: SearchContentOptions) => Promise<SearchContentResult>
+```
+
+原生层内容搜索（避免 OOM）
+在原生层执行搜索，只返回匹配结果，不返回完整文件内容
+
+| Param         | Type                                                                  |
+| ------------- | --------------------------------------------------------------------- |
+| **`options`** | <code><a href="#searchcontentoptions">SearchContentOptions</a></code> |
+
+**Returns:** <code>Promise&lt;<a href="#searchcontentresult">SearchContentResult</a>&gt;</code>
 
 --------------------
 
@@ -645,6 +664,63 @@ echo(options: { value: string; }) => Promise<{ value: string; }>
 | **`fileTypes`**  | <code>string[]</code>                      |
 | **`maxResults`** | <code>number</code>                        |
 | **`recursive`**  | <code>boolean</code>                       |
+
+
+#### SearchContentResult
+
+内容搜索结果
+
+| Prop               | Type                                   | Description       |
+| ------------------ | -------------------------------------- | ----------------- |
+| **`results`**      | <code>ContentSearchFileResult[]</code> | 搜索结果列表            |
+| **`totalFiles`**   | <code>number</code>                    | 总匹配文件数            |
+| **`totalMatches`** | <code>number</code>                    | 总匹配数              |
+| **`duration`**     | <code>number</code>                    | 搜索耗时（毫秒）          |
+| **`skippedFiles`** | <code>number</code>                    | 被跳过的文件数（因文件过大等原因） |
+
+
+#### ContentSearchFileResult
+
+单个文件的内容搜索结果
+
+| Prop            | Type                                           | Description |
+| --------------- | ---------------------------------------------- | ----------- |
+| **`path`**      | <code>string</code>                            | 文件路径        |
+| **`name`**      | <code>string</code>                            | 文件名         |
+| **`matchType`** | <code>'content' \| 'both' \| 'filename'</code> | 匹配类型        |
+| **`matches`**   | <code>ContentMatch[]</code>                    | 匹配列表        |
+| **`score`**     | <code>number</code>                            | 相关性评分       |
+
+
+#### ContentMatch
+
+内容搜索匹配项
+
+| Prop              | Type                | Description         |
+| ----------------- | ------------------- | ------------------- |
+| **`lineNumber`**  | <code>number</code> | 匹配的行号 (1-based)     |
+| **`lineContent`** | <code>string</code> | 匹配的行内容              |
+| **`context`**     | <code>string</code> | 匹配的上下文（带高亮标记位置）     |
+| **`matchStart`**  | <code>number</code> | 匹配开始位置（在 context 中） |
+| **`matchEnd`**    | <code>number</code> | 匹配结束位置（在 context 中） |
+
+
+#### SearchContentOptions
+
+内容搜索选项
+
+| Prop                    | Type                  | Description                |
+| ----------------------- | --------------------- | -------------------------- |
+| **`directory`**         | <code>string</code>   | 搜索目录                       |
+| **`keyword`**           | <code>string</code>   | 搜索关键词                      |
+| **`caseSensitive`**     | <code>boolean</code>  | 是否区分大小写                    |
+| **`fileExtensions`**    | <code>string[]</code> | 文件扩展名过滤（如 ['.md', '.txt']） |
+| **`maxFiles`**          | <code>number</code>   | 最大搜索文件数                    |
+| **`maxFileSize`**       | <code>number</code>   | 最大文件大小（字节），超过的文件将被跳过       |
+| **`maxMatchesPerFile`** | <code>number</code>   | 每个文件最大匹配数                  |
+| **`contextLength`**     | <code>number</code>   | 上下文长度（匹配前后的字符数）            |
+| **`maxDepth`**          | <code>number</code>   | 最大递归深度                     |
+| **`recursive`**         | <code>boolean</code>  | 是否递归搜索子目录                  |
 
 
 #### ReadFileRangeResult

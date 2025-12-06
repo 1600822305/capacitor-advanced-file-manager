@@ -353,6 +353,48 @@ public class AdvancedFileManagerPlugin extends Plugin {
             call.reject("Failed to search files: " + e.getMessage());
         }
     }
+    
+    /**
+     * 原生层内容搜索
+     * 在原生层执行搜索，只返回匹配结果，避免 OOM
+     */
+    @PluginMethod
+    public void searchContent(PluginCall call) {
+        String directory = call.getString("directory");
+        String keyword = call.getString("keyword");
+        Boolean caseSensitive = call.getBoolean("caseSensitive", false);
+        JSArray fileExtensionsArray = call.getArray("fileExtensions");
+        Integer maxFiles = call.getInt("maxFiles", 100);
+        Integer maxFileSize = call.getInt("maxFileSize", 500 * 1024); // 500KB
+        Integer maxMatchesPerFile = call.getInt("maxMatchesPerFile", 10);
+        Integer contextLength = call.getInt("contextLength", 40);
+        Integer maxDepth = call.getInt("maxDepth", 5);
+        Boolean recursive = call.getBoolean("recursive", true);
+
+        if (directory == null || keyword == null || keyword.isEmpty()) {
+            call.reject("Directory and keyword are required");
+            return;
+        }
+
+        try {
+            String[] fileExtensions = null;
+            if (fileExtensionsArray != null && fileExtensionsArray.length() > 0) {
+                fileExtensions = new String[fileExtensionsArray.length()];
+                for (int i = 0; i < fileExtensionsArray.length(); i++) {
+                    fileExtensions[i] = fileExtensionsArray.getString(i);
+                }
+            }
+
+            JSObject result = fileSearcher.searchContent(
+                directory, keyword, caseSensitive, fileExtensions,
+                maxFiles, maxFileSize, maxMatchesPerFile, 
+                contextLength, maxDepth, recursive
+            );
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("Failed to search content: " + e.getMessage());
+        }
+    }
 
     // ==================== 系统文件选择器 ====================
 

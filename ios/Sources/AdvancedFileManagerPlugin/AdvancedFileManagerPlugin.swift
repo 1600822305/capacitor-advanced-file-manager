@@ -27,6 +27,7 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getFileInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "exists", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "searchFiles", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "searchContent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSystemFilePicker", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSystemFileManager", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openFileWithSystemApp", returnType: CAPPluginReturnPromise),
@@ -273,6 +274,36 @@ public class AdvancedFileManagerPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(result)
         } catch {
             call.reject("Failed to search files: \(error.localizedDescription)")
+        }
+    }
+    
+    /// 原生层内容搜索，避免 OOM
+    @objc func searchContent(_ call: CAPPluginCall) {
+        guard let directory = call.getString("directory"),
+              let keyword = call.getString("keyword"), !keyword.isEmpty else {
+            call.reject("Directory and keyword are required")
+            return
+        }
+
+        let caseSensitive = call.getBool("caseSensitive") ?? false
+        let fileExtensions = call.getArray("fileExtensions")?.compactMap { $0 as? String }
+        let maxFiles = call.getInt("maxFiles") ?? 100
+        let maxFileSize = call.getInt("maxFileSize") ?? 500 * 1024
+        let maxMatchesPerFile = call.getInt("maxMatchesPerFile") ?? 10
+        let contextLength = call.getInt("contextLength") ?? 40
+        let maxDepth = call.getInt("maxDepth") ?? 5
+        let recursive = call.getBool("recursive") ?? true
+
+        do {
+            let result = try fileSearcher.searchContent(
+                directory: directory, keyword: keyword, caseSensitive: caseSensitive,
+                fileExtensions: fileExtensions, maxFiles: maxFiles, maxFileSize: maxFileSize,
+                maxMatchesPerFile: maxMatchesPerFile, contextLength: contextLength,
+                maxDepth: maxDepth, recursive: recursive
+            )
+            call.resolve(result)
+        } catch {
+            call.reject("Failed to search content: \(error.localizedDescription)")
         }
     }
 

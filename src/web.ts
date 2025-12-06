@@ -16,6 +16,8 @@ import type {
   CreateDirectoryOptions,
   SearchFilesOptions,
   SearchFilesResult,
+  SearchContentOptions,
+  SearchContentResult,
   PermissionResult,
   SystemFilePickerOptions,
   SystemFilePickerResult,
@@ -233,6 +235,18 @@ export class AdvancedFileManagerWeb extends WebPlugin implements AdvancedFileMan
 
   async searchFiles(_options: SearchFilesOptions): Promise<SearchFilesResult> {
     throw new Error('File search is not supported in web browsers for security reasons');
+  }
+
+  async searchContent(_options: SearchContentOptions): Promise<SearchContentResult> {
+    // Web 平台不支持直接文件系统访问，返回空结果
+    console.warn('searchContent is not fully supported in web browsers');
+    return {
+      results: [],
+      totalFiles: 0,
+      totalMatches: 0,
+      duration: 0,
+      skippedFiles: 0
+    };
   }
 
   async openSystemFilePicker(options: SystemFilePickerOptions): Promise<SystemFilePickerResult> {
